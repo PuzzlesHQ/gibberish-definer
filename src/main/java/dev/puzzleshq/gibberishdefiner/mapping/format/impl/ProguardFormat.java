@@ -28,7 +28,12 @@ public class ProguardFormat implements IMappingFormat {
             if (!isTrackingClass) {
                 String classDefinition = lines[lineIndex++].replace(":", "");
                 String classSourceDefinition = lines[lineIndex++];
-                String sourceName = classSourceDefinition.replace("# {\"fileName\":\"", "").replace("\",\"id\":\"sourceFile\"}", "");
+                String sourceName = "";
+                if (!classSourceDefinition.startsWith("#")) {
+                    lineIndex--;
+                } else {
+                    sourceName = classSourceDefinition.replace("# {\"fileName\":\"", "").replace("\",\"id\":\"sourceFile\"}", "");
+                }
 
                 String[] splitName = ProguardFormat.SPLITTER.split(classDefinition);
                 trackingClass = new ProguardClass(splitName[0], splitName[1], sourceName);
