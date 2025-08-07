@@ -42,7 +42,7 @@ public class MappingUtil {
                     newString += toDescriptor(thing.replaceAll("[\\[\\]]", ""));
                     yield newString;
                 }
-                yield "L" + (mapping.map(thing.replaceAll("\\.", "/"))) + ";";
+                yield "L" + (mapping.mapClass(thing.replaceAll("\\.", "/"))) + ";";
             }
         };
     }
@@ -71,4 +71,7 @@ public class MappingUtil {
         };
     }
 
+    public static String toProperName(String s) {
+        return s.replace('.', '/');
+    }
 }

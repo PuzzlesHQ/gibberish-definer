@@ -11,8 +11,8 @@ import java.util.regex.Pattern;
 public class ProguardFormat implements IMappingFormat {
 
     private static final Pattern SPLITTER = Pattern.compile(" -> ");
-    private static final Pattern FIELD_PATTERN = Pattern.compile("[0-9a-zA-Z_$.-]+ [0-9a-zA-Z_$]+ -> [0-9a-zA-Z_$]+");
-    private static final Pattern METHOD_COLON_PATTERN = Pattern.compile("[0-9]+:[0-9]+:");
+    private static final Pattern FIELD_PATTERN = Pattern.compile("[0-9a-zA-Z_$.-\\[\\]]+ [0-9a-zA-Z_$]+ -> [0-9a-zA-Z_$]+");
+    private static final Pattern METHOD_COLON_PATTERN = Pattern.compile("[0-9\\[\\]]+:[0-9\\[\\]]+:");
 
     @Override
     public IMapping assemble(final IMutableMapping mapping, final String contents) {
@@ -27,21 +27,30 @@ public class ProguardFormat implements IMappingFormat {
         for (;;) {
             if (!isTrackingClass) {
                 String classDefinition = lines[lineIndex++].replace(":", "");
-                String classSourceDefinition = lines[lineIndex++];
+                String classSourceDefinition = "";
                 String sourceName = "";
-                if (!classSourceDefinition.startsWith("#")) {
-                    lineIndex--;
-                } else {
-                    sourceName = classSourceDefinition.replace("# {\"fileName\":\"", "").replace("\",\"id\":\"sourceFile\"}", "");
+                if (lineIndex != lines.length) {
+                    classSourceDefinition = lines[lineIndex++];
+                    if (!classSourceDefinition.startsWith("#")) {
+                        lineIndex--;
+                    } else {
+                        sourceName = classSourceDefinition.replace("# {\"fileName\":\"", "").replace("\",\"id\":\"sourceFile\"}", "");
+                    }
                 }
 
                 String[] splitName = ProguardFormat.SPLITTER.split(classDefinition);
-                trackingClass = new ProguardClass(splitName[0], splitName[1], sourceName);
-                mapping.put(splitName[0], splitName[1]);
+                trackingClass = new ProguardClass(MappingUtil.toProperName(splitName[0]), MappingUtil.toProperName(splitName[1]), sourceName);
+                mapping.putClass(trackingClass.deobfuscatedClassName, trackingClass.obfuscatedClassName);
+
+                mapping.putSource(trackingClass.deobfuscatedClassName, trackingClass.sourceFileName);
+                mapping.putSource(trackingClass.obfuscatedClassName, trackingClass.sourceFileName);
+
                 foundClasses.add(trackingClass);
 
                 isTrackingClass = lineIndex != lines.length && lines[lineIndex].startsWith("    ");
                 if (isTrackingClass) trackingClass.startLine = lineIndex;
+
+                if (lineIndex == lines.length) break;
 
                 continue;
             }
@@ -55,11 +64,9 @@ public class ProguardFormat implements IMappingFormat {
         }
         isTrackingClass = false;
 
-        System.out.printf("Found %d classes.\n", foundClasses.size());
-
         String[] parts, buffer, paramBuffer;
 
-        while (true) {
+        for (;;) {
             if (isTrackingClass) {
                 // Start Class Tracking
                 if (lineIndex == trackingClass.endLine) {
@@ -73,15 +80,21 @@ public class ProguardFormat implements IMappingFormat {
                 parts = SPLITTER.split(currentLine);
                 buffer = parts[0].split(" ");
 
+                String descriptor = MappingUtil.toDescriptor(buffer[0]);
+                String obfuscatedDescriptor = MappingUtil.toDescriptor(mapping, buffer[0]);
+
                 if (isField) {
-                    mapping.put(
-                            trackingClass.deobfuscatedClassName, buffer[1],
-                            trackingClass.obfuscatedClassName, parts[1]
+                    mapping.putField(
+                            trackingClass.deobfuscatedClassName, buffer[1], descriptor,
+                            trackingClass.obfuscatedClassName, parts[1], obfuscatedDescriptor
                     );
                     continue;
                 }
-                String descriptor = MappingUtil.toDescriptor(buffer[0]);
-                String obfuscatedDescriptor = MappingUtil.toDescriptor(mapping, buffer[0]);
+//                else {
+//                    if (Objects.equals(trackingClass.deobfuscatedClassName, "net/minecraft/CrashReport")) {
+//                        System.err.println(buffer[1]);
+//                    }
+//                }
                 buffer = buffer[1].replace("(", " ").replace(")", "").split(" ");
 
                 if (buffer.length < 2) {
@@ -93,7 +106,7 @@ public class ProguardFormat implements IMappingFormat {
                     obfuscatedDescriptor = MappingUtil.toMethodDescriptor(mapping, paramBuffer) + obfuscatedDescriptor;
                 }
 
-                mapping.put(
+                mapping.putMethod(
                         trackingClass.deobfuscatedClassName, buffer[0], descriptor,
                         trackingClass.obfuscatedClassName, parts[1], obfuscatedDescriptor
                 );

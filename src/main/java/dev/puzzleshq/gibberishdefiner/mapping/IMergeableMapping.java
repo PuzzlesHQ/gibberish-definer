@@ -8,5 +8,6 @@ public interface IMergeableMapping extends IMapping {
     Iterable<? extends Map.Entry<String, String>> getClassEntries();
     Iterable<? extends Map.Entry<String, String>> getFieldEntries();
     Iterable<? extends Map.Entry<String, String>> getMethodEntries();
+    Iterable<? extends Map.Entry<String, String>> getSourceEntries();
 
 }
