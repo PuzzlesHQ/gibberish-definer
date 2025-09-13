@@ -32,14 +32,15 @@ public class ClassPreprocessor extends ClassVisitor {
 
     @Override
     public FieldVisitor visitField(int access, String name, String descriptor, String signature, Object value) {
-//        if ((access & Opcodes.ACC_STATIC) == 0 && (access & Opcodes.ACC_PRIVATE) == 0)
+        if ((access & Opcodes.ACC_STATIC) == 0 || (access & Opcodes.ACC_PRIVATE) == 0)
             fields.add(name + "~" + descriptor);
         return super.visitField(access, name, descriptor, signature, value);
     }
 
     @Override
     public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
-        methods.add(name + "~" + descriptor);
+        if ((access & Opcodes.ACC_STATIC) == 0 || (access & Opcodes.ACC_PRIVATE) == 0)
+            methods.add(name + "~" + descriptor);
         return super.visitMethod(access, name, descriptor, signature, exceptions);
     }
 
