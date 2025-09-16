@@ -1,7 +1,10 @@
 package dev.puzzleshq.gibberishdefiner;
 
-import dev.puzzleshq.gibberishdefiner.mapping.format.IMappingFormat;
-import dev.puzzleshq.gibberishdefiner.mapping.format.impl.ProguardFormat;
+import dev.puzzleshq.gibberishdefiner.mapping.format.parsing.impl.CSRGMappingReader;
+import dev.puzzleshq.gibberishdefiner.mapping.format.parsing.impl.SRGMappingReader;
+import dev.puzzleshq.gibberishdefiner.mapping.format.parsing.IMappingFormat;
+import dev.puzzleshq.gibberishdefiner.mapping.format.parsing.impl.CGibberBinFormat;
+import dev.puzzleshq.gibberishdefiner.mapping.format.parsing.impl.ProguardFormat;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -13,6 +16,9 @@ public class GibberishDefiner {
 
     public static void initDefaultFormats() {
         register("proguard", new ProguardFormat());
+        register("cgibberbin", new CGibberBinFormat());
+        register("srg", new SRGMappingReader());
+        register("csrg", new CSRGMappingReader());
     }
 
     public static void register(String type, IMappingFormat format) {

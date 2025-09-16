@@ -26,8 +26,8 @@ public class ClassPreprocessor extends ClassVisitor {
 
         this.name = name;
 
-        if (!superName.equals("java/lang/Object")) parents.add(superName);
         if (interfaces != null && interfaces.length != 0) parents.addAll(List.of(interfaces));
+        parents.add(superName);
     }
 
     @Override

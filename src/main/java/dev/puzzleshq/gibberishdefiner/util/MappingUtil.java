@@ -1,6 +1,7 @@
 package dev.puzzleshq.gibberishdefiner.util;
 
 import dev.puzzleshq.gibberishdefiner.mapping.IMapping;
+import dev.puzzleshq.gibberishdefiner.transformer.GibberishRemapper;
 
 // TODO: Document Class
 public class MappingUtil {
@@ -73,5 +74,10 @@ public class MappingUtil {
 
     public static String toProperName(String s) {
         return s.replace('.', '/');
+    }
+
+    public static String deobfuscateDescriptor(IMapping mapping, String obDesc) {
+        GibberishRemapper remapper = new GibberishRemapper(mapping);
+        return remapper.mapDesc(obDesc);
     }
 }

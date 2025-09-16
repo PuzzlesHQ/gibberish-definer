@@ -15,4 +15,6 @@ dependencies {
     implementation "org.ow2.asm:asm-util:$asm_version"
     implementation "org.ow2.asm:asm-analysis:$asm_version"
     implementation "org.ow2.asm:asm-commons:$asm_version"
+
+    testImplementation "org.hjson:hjson:$hjson_version"
 }

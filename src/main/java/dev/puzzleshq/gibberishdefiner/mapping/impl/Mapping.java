@@ -1,13 +1,13 @@
 package dev.puzzleshq.gibberishdefiner.mapping.impl;
 
 import dev.puzzleshq.gibberishdefiner.mapping.IMapping;
-import dev.puzzleshq.gibberishdefiner.mapping.IMergeableMapping;
+import dev.puzzleshq.gibberishdefiner.mapping.IMapping;
 import dev.puzzleshq.gibberishdefiner.mapping.IMutableMapping;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class Mapping implements IMapping, IMutableMapping, IMergeableMapping {
+public class Mapping implements IMapping, IMutableMapping, Cloneable {
 
     Map<String, String> classes;
     /* clazz~field~descriptor, clazz-field~descriptor*/
@@ -24,6 +24,18 @@ public class Mapping implements IMapping, IMutableMapping, IMergeableMapping {
         sourceMap = new HashMap<>();
     }
 
+    protected Mapping(
+            Map<String, String> classes,
+            Map<String, String> fields,
+            Map<String, String> methods,
+            Map<String, String> sourceMap
+    ) {
+        this.classes = classes;
+        this.fields = fields;
+        this.methods = methods;
+        this.sourceMap = sourceMap;
+    }
+
     @Override
     public String mapClass(String clazz) {
         if (!classes.containsKey(clazz)) return clazz;
@@ -31,8 +43,8 @@ public class Mapping implements IMapping, IMutableMapping, IMergeableMapping {
     }
 
     @Override
-    public String mapField(String clazz, String field, String descriptor) {
-        String key = clazz + "~" + field + "~" + descriptor;
+    public String mapField(String clazz, String field) {
+        String key = clazz + "~" + field;
 
         if (!fields.containsKey(key)) return key;
         return fields.get(key);
@@ -52,9 +64,9 @@ public class Mapping implements IMapping, IMutableMapping, IMergeableMapping {
     }
 
     @Override
-    public void putField(String clazz, String field, String descriptor, String clazz2, String field2, String descriptor2) {
-        String key = clazz + "~" + field + "~" + descriptor;
-        String value = clazz2 + "~" + field2 + "~" + descriptor2;
+    public void putField(String clazz, String field, String clazz2, String field2) {
+        String key = clazz + "~" + field;
+        String value = clazz2 + "~" + field2;
         this.fields.put(key, value);
     }
 
@@ -80,11 +92,27 @@ public class Mapping implements IMapping, IMutableMapping, IMergeableMapping {
             mapping.methods.put(method.getValue(), method.getKey());
         }
 
-        for (Map.Entry<String, String> method : this.sourceMap.entrySet()) {
-            mapping.sourceMap.put(method.getKey(), method.getValue());
-        }
+        mapping.sourceMap.putAll(this.sourceMap);
 
         return mapping;
+    }
+
+    public void merge(IMapping mapping) {
+        for (Map.Entry<String, String> entry : mapping.getClassEntries()) {
+            this.classes.put(entry.getKey(), entry.getValue());
+        }
+
+        for (Map.Entry<String, String> entry : mapping.getFieldEntries()) {
+            this.fields.put(entry.getKey(), entry.getValue());
+        }
+
+        for (Map.Entry<String, String> entry : mapping.getMethodEntries()) {
+            this.methods.put(entry.getKey(), entry.getValue());
+        }
+
+        for (Map.Entry<String, String> entry : mapping.getSourceEntries()) {
+            this.sourceMap.put(entry.getKey(), entry.getValue());
+        }
     }
 
     @Override
@@ -115,5 +143,20 @@ public class Mapping implements IMapping, IMutableMapping, IMergeableMapping {
     @Override
     public Iterable<? extends Map.Entry<String, String>> getSourceEntries() {
         return this.sourceMap.entrySet();
+    }
+
+    @Override
+    public Mapping clone() {
+        Map<String, String> cloneClasses = new HashMap<>(classes);
+        Map<String, String> cloneFields = new HashMap<>(fields);
+        Map<String, String> cloneMethods = new HashMap<>(methods);
+        Map<String, String> cloneSourceMap = new HashMap<>(sourceMap);
+
+        return new Mapping(
+                cloneClasses,
+                cloneFields,
+                cloneMethods,
+                cloneSourceMap
+        );
     }
 }

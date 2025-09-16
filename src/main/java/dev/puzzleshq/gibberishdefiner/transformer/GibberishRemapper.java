@@ -31,7 +31,7 @@ public class GibberishRemapper extends Remapper {
     }
 
     public String mapFieldName(String owner, String name, String descriptor) {
-        String method = mapping.mapField(owner, name, descriptor);
+        String method = mapping.mapField(owner, name);
         return method.split("~")[1];
     }
 
