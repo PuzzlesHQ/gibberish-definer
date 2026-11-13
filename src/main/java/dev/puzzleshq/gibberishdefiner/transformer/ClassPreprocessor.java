@@ -6,6 +6,7 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class ClassPreprocessor extends ClassVisitor {
@@ -26,7 +27,7 @@ public class ClassPreprocessor extends ClassVisitor {
 
         this.name = name;
 
-        if (interfaces != null && interfaces.length != 0) parents.addAll(List.of(interfaces));
+        if (interfaces != null && interfaces.length != 0) parents.addAll(Arrays.asList(interfaces));
         parents.add(superName);
     }
 

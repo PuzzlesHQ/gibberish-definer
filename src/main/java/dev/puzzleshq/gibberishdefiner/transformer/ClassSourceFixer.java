@@ -1,9 +1,6 @@
 package dev.puzzleshq.gibberishdefiner.transformer;
 
 import dev.puzzleshq.gibberishdefiner.mapping.IMapping;
-import dev.puzzleshq.gibberishdefiner.mapping.IMapping;
-import dev.puzzleshq.gibberishdefiner.mapping.IMutableMapping;
-import org.objectweb.asm.Attribute;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Opcodes;
 

@@ -5,11 +5,13 @@ import dev.puzzleshq.gibberishdefiner.mapping.impl.Mapping;
 import dev.puzzleshq.gibberishdefiner.transformer.ClassPreprocessor;
 import dev.puzzleshq.gibberishdefiner.transformer.ClassSourceFixer;
 import dev.puzzleshq.gibberishdefiner.transformer.GibberishRemapper;
+import dev.puzzleshq.gibberishdefiner.util.JavaUtils;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.commons.ClassRemapper;
 
 import java.io.*;
+import java.nio.file.Files;
 import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -17,18 +19,18 @@ import java.util.zip.ZipOutputStream;
 
 public class JarRemapper {
 
-    public static IMapping createContextMapping(File inputJar, IMapping mapping) {
-        return createContextMapping(inputJar, mapping, false);
+    public static IMapping createFinishedMapping(File inputJar, IMapping mapping) {
+        return createFinishedMapping(inputJar, mapping, false);
     }
 
-    public static IMapping createContextMapping(File inputJar, IMapping mapping, boolean reverse) {
+    public static IMapping createFinishedMapping(File inputJar, IMapping mapping, boolean reverse) {
         if (reverse) mapping = mapping.reverse();
 
         Map<String, ClassPreprocessor> preprocessorMap = new HashMap<>();
 
         try {
             FileInputStream stream = new FileInputStream(inputJar);
-            byte[] bytes = stream.readAllBytes();
+            byte[] bytes = JavaUtils.readAllBytes(stream);
             stream.close();
             ZipInputStream input = new ZipInputStream(new ByteArrayInputStream(bytes));
 
@@ -42,7 +44,7 @@ public class JarRemapper {
                         continue;
                     }
 
-                    ClassReader reader = new ClassReader(input.readAllBytes());
+                    ClassReader reader = new ClassReader(JavaUtils.readAllBytes(input));
                     ClassPreprocessor preprocessor = new ClassPreprocessor();
 
                     preprocessorMap.put(reader.getClassName(), preprocessor);
@@ -62,18 +64,18 @@ public class JarRemapper {
         return mapping;
     }
 
-    public static IMapping applySkeletonMapping(File inputJar, File outputJar, IMapping mapping) {
-        return applySkeletonMapping(inputJar, outputJar, mapping, false);
+    public static IMapping applyBareMapping(File inputJar, File outputJar, IMapping mapping) {
+        return applyBareMapping(inputJar, outputJar, mapping, false);
     }
 
-    public static IMapping applySkeletonMapping(File inputJar, File outputJar, IMapping mapping, boolean reverse) {
+    public static IMapping applyBareMapping(File inputJar, File outputJar, IMapping mapping, boolean reverse) {
         if (reverse) mapping = mapping.reverse();
 
         Map<String, ClassPreprocessor> preprocessorMap = new HashMap<>();
 
         try {
             FileInputStream stream = new FileInputStream(inputJar);
-            byte[] bytes = stream.readAllBytes();
+            byte[] bytes = JavaUtils.readAllBytes(stream);
             stream.close();
             ZipInputStream input = new ZipInputStream(new ByteArrayInputStream(bytes));
 
@@ -87,7 +89,7 @@ public class JarRemapper {
 //                        entry = input.getNextEntry();
 //                        continue;
 //                    }
-                    ClassReader reader = new ClassReader(input.readAllBytes());
+                    ClassReader reader = new ClassReader(JavaUtils.readAllBytes(input));
                     ClassPreprocessor preprocessor = new ClassPreprocessor();
 
                     reader.accept(preprocessor, 0);
@@ -103,20 +105,20 @@ public class JarRemapper {
             GibberishRemapper remapper = new GibberishRemapper(remixedMapping);
 
             input = new ZipInputStream(new ByteArrayInputStream(bytes));
-            ZipOutputStream output = new ZipOutputStream(new FileOutputStream(outputJar));
+            ZipOutputStream output = new ZipOutputStream(Files.newOutputStream(outputJar.toPath()));
             entry = input.getNextEntry();
             while (entry != null) {
                 String entryName = entry.getName();
 
                 if (entryName.contains("module-info") || entryName.contains("package-info")) {
-                    byte[] classBytes = transformClass(input.readAllBytes(), remixedMapping, remapper);
+                    byte[] classBytes = transformClass(JavaUtils.readAllBytes(input), remixedMapping, remapper);
                     if (classBytes != null) {
                         entry = new ZipEntry(remixedMapping.mapClass(entryName.replace(".class", "")) + ".class");
                         output.putNextEntry(entry);
-                        output.write(input.readAllBytes());
+                        output.write(JavaUtils.readAllBytes(input));
                     }
                 } else if (entryName.endsWith(".class")) {
-                    byte[] classBytes = transformClass(input.readAllBytes(), remixedMapping, remapper);
+                    byte[] classBytes = transformClass(JavaUtils.readAllBytes(input), remixedMapping, remapper);
                     if (classBytes != null) {
                         entry = new ZipEntry(remixedMapping.mapClass(entryName.replace(".class", "")) + ".class");
                         output.putNextEntry(entry);
@@ -125,7 +127,7 @@ public class JarRemapper {
                 } else {
                     if (!entryName.contains(".RSA") && !entryName.contains(".SF")) {
                         output.putNextEntry(entry);
-                        output.write(input.readAllBytes());
+                        output.write(JavaUtils.readAllBytes(input));
                     }
                 }
 
@@ -141,18 +143,18 @@ public class JarRemapper {
         return mapping;
     }
 
-    public static IMapping applyContextMapping(File inputJar, File outputJar, IMapping mapping) {
-        return applyContextMapping(inputJar, outputJar, mapping, false);
+    public static IMapping applyMapping(File inputJar, File outputJar, IMapping mapping) {
+        return applyMapping(inputJar, outputJar, mapping, false);
     }
 
-    public static IMapping applyContextMapping(File inputJar, File outputJar, IMapping mapping, boolean reverse) {
+    public static IMapping applyMapping(File inputJar, File outputJar, IMapping mapping, boolean reverse) {
         if (reverse) mapping = mapping.reverse();
 
         GibberishRemapper remapper = new GibberishRemapper(mapping);
 
         try {
             FileInputStream stream = new FileInputStream(inputJar);
-            byte[] bytes = stream.readAllBytes();
+            byte[] bytes = JavaUtils.readAllBytes(stream);
             stream.close();
 
             ZipInputStream input = new ZipInputStream(new ByteArrayInputStream(bytes));
@@ -162,14 +164,14 @@ public class JarRemapper {
                 String entryName = entry.getName();
 
                 if (entryName.contains("module-info") || entryName.contains("package-info")) {
-                    byte[] classBytes = transformClass(input.readAllBytes(), mapping, remapper);
+                    byte[] classBytes = transformClass(JavaUtils.readAllBytes(input), mapping, remapper);
                     if (classBytes != null) {
                         entry = new ZipEntry(mapping.mapClass(entryName.replace(".class", "")) + ".class");
                         output.putNextEntry(entry);
-                        output.write(input.readAllBytes());
+                        output.write(JavaUtils.readAllBytes(input));
                     }
                 } else if (entryName.endsWith(".class")) {
-                    byte[] classBytes = transformClass(input.readAllBytes(), mapping, remapper);
+                    byte[] classBytes = transformClass(JavaUtils.readAllBytes(input), mapping, remapper);
                     if (classBytes != null) {
                         entry = new ZipEntry(mapping.mapClass(entryName.replace(".class", "")) + ".class");
                         output.putNextEntry(entry);
@@ -178,7 +180,7 @@ public class JarRemapper {
                 } else {
                     if (!entryName.contains(".RSA") && !entryName.contains(".SF")) {
                         output.putNextEntry(entry);
-                        output.write(input.readAllBytes());
+                        output.write(JavaUtils.readAllBytes(input));
                     }
                 }
 

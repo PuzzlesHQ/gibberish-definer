@@ -1,13 +1,11 @@
 package dev.puzzleshq.gibberishdefiner.mapping.impl;
 
 import dev.puzzleshq.gibberishdefiner.mapping.IMapping;
-import dev.puzzleshq.gibberishdefiner.mapping.IMapping;
-import dev.puzzleshq.gibberishdefiner.mapping.IMutableMapping;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class Mapping implements IMapping, IMutableMapping, Cloneable {
+public class Mapping implements IMapping, Cloneable {
 
     Map<String, String> classes;
     /* clazz~field~descriptor, clazz-field~descriptor*/

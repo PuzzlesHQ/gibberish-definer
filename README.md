@@ -5,3 +5,5 @@
 
 **Supported Formats**:
 - Proguard
+- CSRG
+- TSRG

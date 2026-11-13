@@ -1,12 +1,18 @@
 plugins {
     id 'java'
+    id 'maven-publish'
 }
 
 group = 'dev.puzzleshq'
-version = '1.0.0'
+version = '1.0.0-SNAP'
 
 repositories {
     mavenCentral()
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
 }
 
 dependencies {
@@ -16,5 +22,19 @@ dependencies {
     implementation "org.ow2.asm:asm-analysis:$asm_version"
     implementation "org.ow2.asm:asm-commons:$asm_version"
 
+    implementation "net.fabricmc:mapping-io:0.8.0"
+
     testImplementation "org.hjson:hjson:$hjson_version"
+}
+
+publishing {
+
+    publications {
+        maven(MavenPublication) {
+            groupId = group
+            artifactId = "gibberish-definer"
+
+            from components.java
+        }
+    }
 }
