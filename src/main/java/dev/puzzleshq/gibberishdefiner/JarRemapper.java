@@ -64,6 +64,10 @@ public class JarRemapper {
         return mapping;
     }
 
+    public static byte[] applyMappingToClass(byte[] clazz, GibberishRemapper gibberishRemapper) throws IOException {
+        return transformClass(clazz, gibberishRemapper.mapping, gibberishRemapper);
+    }
+
     public static IMapping applyBareMapping(File inputJar, File outputJar, IMapping mapping) {
         return applyBareMapping(inputJar, outputJar, mapping, false);
     }
@@ -85,10 +89,6 @@ public class JarRemapper {
 
                 if (entryName.contains("module-info") || entryName.contains("package-info")) {}
                 else if (entryName.endsWith(".class")) {
-//                    if (mapping.mapClass(entryName.replace(".class", "")).equals(entryName.replace(".class", ""))) {
-//                        entry = input.getNextEntry();
-//                        continue;
-//                    }
                     ClassReader reader = new ClassReader(JavaUtils.readAllBytes(input));
                     ClassPreprocessor preprocessor = new ClassPreprocessor();
 
@@ -243,7 +243,7 @@ public class JarRemapper {
 
     private static byte[] transformClass(byte[] bytes, IMapping mapping, GibberishRemapper remapper) throws IOException {
         ClassReader reader = new ClassReader(bytes);
-        ClassWriter writer = new ClassWriter(reader, ClassWriter.COMPUTE_MAXS);
+        ClassWriter writer = new ClassWriter(reader, 0);
 
         ClassRemapper classRemapper = new ClassRemapper(writer, remapper);
         remapper.className = reader.getClassName();

@@ -6,7 +6,7 @@ import org.objectweb.asm.commons.Remapper;
 
 public class GibberishRemapper extends Remapper {
 
-    IMapping mapping;
+    public final IMapping mapping;
     public ClassReader reader;
     public String className;
 
