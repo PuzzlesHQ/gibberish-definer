@@ -1,7 +1,16 @@
 plugins {
     id 'java'
     id 'maven-publish'
+    id("io.github.sgtsilvio.gradle.maven-central-publishing") version "0.6.0"
 }
+
+def ref = System.getenv("GITHUB_REF")
+version = ((ref == null) ? "refs/tags/" + p_version : ref).replaceAll("refs/tags/", "")
+
+String mavenUrl = System.getenv("MAVEN_URL")
+
+String envRepo = System.getenv("MAVEN_REPO")
+String mavenRepo = envRepo != null ? envRepo : "releases"
 
 group = 'dev.puzzleshq'
 version = '1.0.0-SNAP'
@@ -22,19 +31,68 @@ dependencies {
     implementation "org.ow2.asm:asm-analysis:$asm_version"
     implementation "org.ow2.asm:asm-commons:$asm_version"
 
-    implementation "net.fabricmc:mapping-io:0.8.0"
+    implementation "net.fabricmc:mapping-io:$fabric_mapping_io"
 
     testImplementation "org.hjson:hjson:$hjson_version"
 }
 
 publishing {
+    repositories {
+        maven {
+            name = "PuzzleHQsMaven"
+            url = mavenUrl+ "/" +mavenRepo
+            credentials {
+                username = System.getenv("MAVEN_NAME")
+                password = System.getenv("MAVEN_SECRET")
+            }
+            authentication {
+                basic(BasicAuthentication)
+            }
+        }
+    }
 
     publications {
         maven(MavenPublication) {
-            groupId = group
-            artifactId = "gibberish-definer"
+            groupId = p_group
+            artifactId = p_id
+            version = this.version
 
             from components.java
+
+            pom {
+                name = p_name
+                description = p_desc
+                url = p_git
+
+                licenses {
+                    license {
+                        name = "GNU Lesser General Public License"
+                        url = "https://www.gnu.org/licenses/lgpl-3.0.html"
+                        distribution = "LGPL"
+                        comments = "This project includes LGPL-licensed components."
+                    }
+                }
+
+                developers {
+                    developer {
+                        id = 'mrzombii'
+                        name = 'Mr Zombii'
+                        email = 'thezombiigames@gmail.com'
+                    }
+                }
+                scm {
+                    connection = "${p_git}.git"
+                    developerConnection = "${p_git}.git"
+                    url = "${p_git}.git"
+                }
+            }
         }
+    }
+}
+
+if (ref != null) {
+    signing {
+        useGpgCmd()
+        sign(publishing.publications[0])
     }
 }
