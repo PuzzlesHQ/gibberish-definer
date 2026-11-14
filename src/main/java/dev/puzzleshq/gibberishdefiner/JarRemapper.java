@@ -196,32 +196,66 @@ public class JarRemapper {
         return mapping;
     }
 
+    public static List<ClassPreprocessor> getTopologicallySortedClasses(Map<String, ClassPreprocessor> preprocessorMap) {
+        List<ClassPreprocessor> sorted = new ArrayList<>();
+        Set<String> visited = new HashSet<>();
+
+        for (ClassPreprocessor preprocessor : preprocessorMap.values()) {
+            sortNode(preprocessor, preprocessorMap, sorted, visited);
+        }
+
+        return sorted;
+    }
+
+    private static void sortNode(ClassPreprocessor current, Map<String, ClassPreprocessor> map, List<ClassPreprocessor> sorted, Set<String> visited) {
+        if (current == null || visited.contains(current.name)) return;
+
+        visited.add(current.name);
+
+        for (String parentName : current.parents) {
+            ClassPreprocessor parent = map.get(parentName);
+            if (parent != null) {
+                sortNode(parent, map, sorted, visited);
+            }
+        }
+
+        sorted.add(current);
+    }
+    
     private static IMapping remixMapping(Map<String, ClassPreprocessor> preprocessorMap, IMapping mapping) {
         Mapping remixedMapping = new Mapping();
         remixedMapping.merge(mapping);
 
-        for (Map.Entry<String, ClassPreprocessor> entry : preprocessorMap.entrySet()) {
-            for (ClassPreprocessor parent : allParents(preprocessorMap, entry.getValue())) {
+        List<ClassPreprocessor> sortedClasses = getTopologicallySortedClasses(preprocessorMap);
+
+        for (ClassPreprocessor entry : sortedClasses) {
+            Set<String> visited = new HashSet<>();
+            for (ClassPreprocessor parent : allParents(preprocessorMap, entry, visited)) {
                 for (String method : parent.methods) {
-                    String mapO = remixedMapping.mapMethod(entry.getKey(), method.split("~")[0], method.split("~")[1]);
-                    if (!mapO.equals(entry.getKey() + "~" + method.split("~")[0] + "~" + method.split("~")[1])) {
+                    if (method.split("~")[0].equals("t_")) {
+                        System.out.println("Found t_ in parent: " + mapping.mapClass(parent.name) + " for class: " + mapping.mapClass(entry.name));
+                        System.out.println("Mapped parent result: " + remixedMapping.mapMethod(parent.name, method.split("~")[0], method.split("~")[1]));
+                    }
+
+                    String mapO = remixedMapping.mapMethod(entry.name, method.split("~")[0], method.split("~")[1]);
+                    if (!mapO.equals(entry.name + "~" + method.split("~")[0] + "~" + method.split("~")[1])) {
                         continue;
                     }
                     String map = remixedMapping.mapMethod(parent.name, method.split("~")[0], method.split("~")[1]);
 
                     remixedMapping.putMethod(
-                            entry.getKey(), method.split("~")[0], method.split("~")[1],
-                            remixedMapping.mapClass(entry.getKey()), map.split("~")[1], map.split("~")[2]
+                            entry.name, method.split("~")[0], method.split("~")[1],
+                            remixedMapping.mapClass(entry.name), map.split("~")[1], map.split("~")[2]
                     );
                 }
                 for (String field : parent.fields) {
-                    String mapO = remixedMapping.mapField(entry.getKey(), field.split("~")[0]);
-                    if (!mapO.equals(entry.getKey() + "~" + field.split("~")[0])) continue;
+                    String mapO = remixedMapping.mapField(entry.name, field.split("~")[0]);
+                    if (!mapO.equals(entry.name + "~" + field.split("~")[0])) continue;
 
                     String map = remixedMapping.mapField(parent.name, field.split("~")[0]);
                     remixedMapping.putField(
-                            entry.getKey(), field.split("~")[0],
-                            remixedMapping.mapClass(entry.getKey()), map.split("~")[1]
+                            entry.name, field.split("~")[0],
+                            remixedMapping.mapClass(entry.name), map.split("~")[1]
                     );
                 }
             }
@@ -230,13 +264,15 @@ public class JarRemapper {
         return remixedMapping;
     }
 
-    private static List<ClassPreprocessor> allParents(Map<String, ClassPreprocessor> preprocessorMap, ClassPreprocessor entry) {
+    private static List<ClassPreprocessor> allParents(Map<String, ClassPreprocessor> preprocessorMap, ClassPreprocessor entry, Set<String> visited) {
         List<ClassPreprocessor> a = new ArrayList<>();
-        for (String parent : entry.parents) {
-            ClassPreprocessor preprocessor = preprocessorMap.get(parent);
-            if (preprocessor == null) continue;
-            a.add(preprocessor);
-            a.addAll(allParents(preprocessorMap, preprocessorMap.get(preprocessor.name)));
+        if (entry == null || !visited.add(entry.name)) return a;
+
+        for (String parentName : entry.parents) {
+            ClassPreprocessor parent = preprocessorMap.get(parentName);
+            if (parent == null) continue;
+            a.add(parent);
+            a.addAll(allParents(preprocessorMap, parent, visited));
         }
         return a;
     }
