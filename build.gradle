@@ -13,13 +13,21 @@ String envRepo = System.getenv("MAVEN_REPO")
 String mavenRepo = envRepo != null ? envRepo : "releases"
 
 group = 'dev.puzzleshq'
-version = '1.0.0-SNAP'
+version = p_version
 
 repositories {
     mavenCentral()
 }
 
+
+javadoc {
+    options.addStringOption('Xdoclint:none', '-quiet')
+}
+
 java {
+    withJavadocJar()
+    withSourcesJar()
+
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
 }
