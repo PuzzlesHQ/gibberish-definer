@@ -1,9 +1,7 @@
 package dev.puzzleshq.gibberishdefiner.transformer;
 
-import org.objectweb.asm.ClassVisitor;
-import org.objectweb.asm.FieldVisitor;
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Opcodes;
+import dev.puzzleshq.gibberishdefiner.transformer.mixin.MixinAnnotationProcessorVisitor;
+import org.objectweb.asm.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -15,10 +13,20 @@ public class ClassPreprocessor extends ClassVisitor {
     public final List<String> fields = new ArrayList<>();
     public final List<String> parents = new ArrayList<>();
 
+    public boolean isMixin = false;
+
     public String name;
 
     public ClassPreprocessor() {
         super(Opcodes.ASM9);
+    }
+
+    @Override
+    public AnnotationVisitor visitTypeAnnotation(int typeRef, TypePath typePath, String descriptor, boolean visible) {
+        if ("Lorg/spongepowered/asm/mixin/Mixin;".equals(descriptor)) {
+            isMixin = true;
+        }
+        return super.visitTypeAnnotation(typeRef, typePath, descriptor, visible);
     }
 
     @Override
@@ -43,6 +51,14 @@ public class ClassPreprocessor extends ClassVisitor {
         if ((access & Opcodes.ACC_STATIC) == 0 || (access & Opcodes.ACC_PRIVATE) == 0)
             methods.add(name + "~" + descriptor);
         return super.visitMethod(access, name, descriptor, signature, exceptions);
+    }
+
+    @Override
+    public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
+        if (descriptor.equals("Lorg/spongepowered/asm/mixin/Mixin;")) {
+            return new MixinAnnotationProcessorVisitor(parents);
+        }
+        return super.visitAnnotation(descriptor, visible);
     }
 
 }

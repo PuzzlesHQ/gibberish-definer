@@ -6,6 +6,8 @@ import java.util.Map;
 public interface IMapping {
 
     String mapClass(String clazz);
+    boolean hasClass(String clazz);
+
     String mapField(String clazz, String field);
     String mapMethod(String clazz, String method, String descriptor);
 

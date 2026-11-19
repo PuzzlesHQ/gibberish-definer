@@ -2,10 +2,13 @@ package dev.puzzleshq.gibberishdefiner.mapping.impl;
 
 import dev.puzzleshq.gibberishdefiner.mapping.IMapping;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Mapping implements IMapping, Cloneable {
+public class Mapping implements IMapping, Cloneable, Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     Map<String, String> classes;
     /* clazz~field~descriptor, clazz-field~descriptor*/
@@ -38,6 +41,11 @@ public class Mapping implements IMapping, Cloneable {
     public String mapClass(String clazz) {
         if (!classes.containsKey(clazz)) return clazz;
         return classes.get(clazz);
+    }
+
+    @Override
+    public boolean hasClass(String clazz) {
+        return classes.containsKey(clazz);
     }
 
     @Override

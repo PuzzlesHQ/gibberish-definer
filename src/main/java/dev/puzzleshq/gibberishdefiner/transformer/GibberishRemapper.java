@@ -7,11 +7,13 @@ import org.objectweb.asm.commons.Remapper;
 public class GibberishRemapper extends Remapper {
 
     public final IMapping mapping;
+    public final IMapping flippedMapping;
     public ClassReader reader;
     public String className;
 
     public GibberishRemapper(IMapping mapping) {
         this.mapping = mapping;
+        this.flippedMapping = mapping.reverse();
     }
 
     @Override
