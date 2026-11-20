@@ -13,7 +13,6 @@ String envRepo = System.getenv("MAVEN_REPO")
 String mavenRepo = envRepo != null ? envRepo : "releases"
 
 group = 'dev.puzzleshq'
-version = p_version
 
 repositories {
     mavenCentral()
