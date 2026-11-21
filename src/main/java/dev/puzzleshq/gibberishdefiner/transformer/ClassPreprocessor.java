@@ -41,14 +41,16 @@ public class ClassPreprocessor extends ClassVisitor {
 
     @Override
     public FieldVisitor visitField(int access, String name, String descriptor, String signature, Object value) {
-        if ((access & Opcodes.ACC_STATIC) == 0 || (access & Opcodes.ACC_PRIVATE) == 0)
+        // private fields are never inherited; static ones still are (Sub.FIELD resolves to the parent's)
+        if ((access & Opcodes.ACC_PRIVATE) == 0)
             fields.add(name + "~" + descriptor);
         return super.visitField(access, name, descriptor, signature, value);
     }
 
     @Override
     public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
-        if ((access & Opcodes.ACC_STATIC) == 0 || (access & Opcodes.ACC_PRIVATE) == 0)
+        // private methods aren't inherited, and <init>/<clinit> are never renamed or inherited
+        if ((access & Opcodes.ACC_PRIVATE) == 0 && !name.startsWith("<"))
             methods.add(name + "~" + descriptor);
         return super.visitMethod(access, name, descriptor, signature, exceptions);
     }

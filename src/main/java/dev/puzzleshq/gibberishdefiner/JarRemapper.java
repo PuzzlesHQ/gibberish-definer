@@ -4,6 +4,7 @@ import dev.puzzleshq.gibberishdefiner.mapping.IMapping;
 import dev.puzzleshq.gibberishdefiner.mapping.impl.Mapping;
 import dev.puzzleshq.gibberishdefiner.transformer.ClassPreprocessor;
 import dev.puzzleshq.gibberishdefiner.transformer.ClassSourceFixer;
+import dev.puzzleshq.gibberishdefiner.transformer.GibberishClassRemapper;
 import dev.puzzleshq.gibberishdefiner.transformer.GibberishRemapper;
 import dev.puzzleshq.gibberishdefiner.transformer.mixin.rewrite.MixinRewriter;
 import dev.puzzleshq.gibberishdefiner.util.JavaUtils;
@@ -223,102 +224,124 @@ public class JarRemapper {
 
         sorted.add(current);
     }
-    
+
     private static IMapping remixMapping(Map<String, ClassPreprocessor> preprocessorMap, IMapping mapping) {
         Mapping remixedMapping = new Mapping();
         remixedMapping.merge(mapping);
 
+        // Parents that live outside the jar but have entries in the mapping, indexed once up front.
+        Map<String, ClassPreprocessor> libraryParents = buildLibraryParents(preprocessorMap, mapping);
+
         List<ClassPreprocessor> sortedClasses = getTopologicallySortedClasses(preprocessorMap);
 
         for (ClassPreprocessor entry : sortedClasses) {
-            for (ClassPreprocessor parent : allParents(mapping, preprocessorMap, entry)) {
-                for (String method : entry.methods) {
-                    String mapO = remixedMapping.mapMethod(entry.name, method.split("~")[0], method.split("~")[1]);
-                    if (!mapO.equals(entry.name + "~" + method.split("~")[0] + "~" + method.split("~")[1])) {
-                        continue;
-                    }
-                    String map = remixedMapping.mapMethod(parent.name, method.split("~")[0], method.split("~")[1]);
+            String mappedEntry = remixedMapping.mapClass(entry.name);
 
-                    remixedMapping.putMethod(
-                            entry.name, method.split("~")[0], method.split("~")[1],
-                            remixedMapping.mapClass(entry.name), map.split("~")[1], map.split("~")[2]
-                    );
-                }
-                for (String field : entry.fields) {
-                    String mapO = remixedMapping.mapField(entry.name, field.split("~")[0]);
-                    if (!mapO.equals(entry.name + "~" + field.split("~")[0])) continue;
+            for (ClassPreprocessor parent : allParents(preprocessorMap, libraryParents, entry)) {
+                // members the class declares itself (overrides / hidden fields) pick up the parent's name
+                for (String method : entry.methods) inheritMethod(remixedMapping, entry.name, mappedEntry, parent.name, method);
+                for (String field : entry.fields) inheritField(remixedMapping, entry.name, mappedEntry, parent.name, field);
 
-                    String map = remixedMapping.mapField(parent.name, field.split("~")[0]);
-                    remixedMapping.putField(
-                            entry.name, field.split("~")[0],
-                            remixedMapping.mapClass(entry.name), map.split("~")[1]
-                    );
-                }
-                for (String method : parent.methods) {
-                    String mapO = remixedMapping.mapMethod(entry.name, method.split("~")[0], method.split("~")[1]);
-                    if (!mapO.equals(entry.name + "~" + method.split("~")[0] + "~" + method.split("~")[1])) {
-                        continue;
-                    }
-                    String map = remixedMapping.mapMethod(parent.name, method.split("~")[0], method.split("~")[1]);
-
-                    remixedMapping.putMethod(
-                            entry.name, method.split("~")[0], method.split("~")[1],
-                            remixedMapping.mapClass(entry.name), map.split("~")[1], map.split("~")[2]
-                    );
-                }
-                for (String field : parent.fields) {
-                    String mapO = remixedMapping.mapField(entry.name, field.split("~")[0]);
-                    if (!mapO.equals(entry.name + "~" + field.split("~")[0])) continue;
-
-                    String map = remixedMapping.mapField(parent.name, field.split("~")[0]);
-                    remixedMapping.putField(
-                            entry.name, field.split("~")[0],
-                            remixedMapping.mapClass(entry.name), map.split("~")[1]
-                    );
-                }
+                // members only the parent declares, but which can be referenced through this class
+                for (String method : parent.methods) inheritMethod(remixedMapping, entry.name, mappedEntry, parent.name, method);
+                for (String field : parent.fields) inheritField(remixedMapping, entry.name, mappedEntry, parent.name, field);
             }
         }
 
         return remixedMapping;
     }
 
-    private static List<ClassPreprocessor> allParents(IMapping mapping, Map<String, ClassPreprocessor> preprocessorMap, ClassPreprocessor entry) {
-        return allParents(mapping, preprocessorMap, entry, new HashSet<>());
+    /** member is "name~descriptor". Only writes an entry when the parent's member is actually mapped. */
+    private static void inheritMethod(Mapping remixed, String entryName, String mappedEntry, String parentName, String member) {
+        int sep = member.indexOf('~');
+        if (sep <= 0) return;
+
+        String name = member.substring(0, sep);
+        String desc = member.substring(sep + 1);
+        if (name.charAt(0) == '<') return; // <init> / <clinit> are never inherited or renamed
+
+        // the class already has its own (or a closer parent's) mapping for this method
+        if (!remixed.mapMethod(entryName, name, desc).equals(entryName + "~" + name + "~" + desc)) return;
+
+        String mapped = remixed.mapMethod(parentName, name, desc);
+        // unmapped in the parent: there is nothing to inherit, don't write an identity entry
+        if (mapped.equals(parentName + "~" + name + "~" + desc)) return;
+
+        String[] split = mapped.split("~");
+        remixed.putMethod(entryName, name, desc, mappedEntry, split[1], split[2]);
     }
 
-    private static List<ClassPreprocessor> allParents(IMapping mapping, Map<String, ClassPreprocessor> preprocessorMap, ClassPreprocessor entry, Set<String> visited) {
+    /** member is "name" or "name~descriptor". Only writes an entry when the parent's field is actually mapped. */
+    private static void inheritField(Mapping remixed, String entryName, String mappedEntry, String parentName, String member) {
+        int sep = member.indexOf('~');
+        String name = sep < 0 ? member : member.substring(0, sep);
+
+        if (!remixed.mapField(entryName, name).equals(entryName + "~" + name)) return;
+
+        String mapped = remixed.mapField(parentName, name);
+        if (mapped.equals(parentName + "~" + name)) return;
+
+        String[] split = mapped.split("~");
+        remixed.putField(entryName, name, mappedEntry, split[1]);
+    }
+
+    /**
+     * Builds one stand-in ClassPreprocessor per parent that is not in the jar but is known to the mapping,
+     * filling their members from a single pass over the mapping (instead of one pass per class per parent).
+     */
+    private static Map<String, ClassPreprocessor> buildLibraryParents(Map<String, ClassPreprocessor> preprocessorMap, IMapping mapping) {
+        Map<String, ClassPreprocessor> libraryParents = new HashMap<>();
+
+        for (ClassPreprocessor processor : preprocessorMap.values()) {
+            for (String parentName : processor.parents) {
+                if (parentName == null) continue;
+                if (preprocessorMap.containsKey(parentName) || libraryParents.containsKey(parentName)) continue;
+                if (!mapping.hasClass(parentName)) continue;
+
+                ClassPreprocessor proxy = new ClassPreprocessor();
+                proxy.name = parentName;
+                libraryParents.put(parentName, proxy);
+            }
+        }
+
+        if (libraryParents.isEmpty()) return libraryParents;
+
+        for (Map.Entry<String, String> fieldEntry : mapping.getFieldEntries()) {
+            String key = fieldEntry.getKey();
+            int sep = key.indexOf('~');
+            if (sep < 0) continue;
+            ClassPreprocessor proxy = libraryParents.get(key.substring(0, sep));
+            if (proxy != null) proxy.fields.add(key.substring(sep + 1));
+        }
+
+        for (Map.Entry<String, String> methodEntry : mapping.getMethodEntries()) {
+            String key = methodEntry.getKey();
+            int sep = key.indexOf('~');
+            if (sep < 0) continue;
+            ClassPreprocessor proxy = libraryParents.get(key.substring(0, sep));
+            if (proxy != null) proxy.methods.add(key.substring(sep + 1));
+        }
+
+        return libraryParents;
+    }
+
+    private static List<ClassPreprocessor> allParents(Map<String, ClassPreprocessor> preprocessorMap, Map<String, ClassPreprocessor> libraryParents, ClassPreprocessor entry) {
+        return allParents(preprocessorMap, libraryParents, entry, new HashSet<>());
+    }
+
+    private static List<ClassPreprocessor> allParents(Map<String, ClassPreprocessor> preprocessorMap, Map<String, ClassPreprocessor> libraryParents, ClassPreprocessor entry, Set<String> visited) {
         List<ClassPreprocessor> a = new ArrayList<>();
         if (entry == null || !visited.add(entry.name)) return a;
 
         for (String parentName : entry.parents) {
             ClassPreprocessor parent = preprocessorMap.get(parentName);
             if (parent == null) {
-                if (!mapping.hasClass(parentName)) continue;
-                ClassPreprocessor proc = new ClassPreprocessor();
-                for (Map.Entry<String, String> fieldEntry : mapping.getFieldEntries()) {
-                    String[] split = fieldEntry.getKey().split("~");
-                    if (!Objects.equals(split[0], parentName)) continue;
-                    proc.fields.add(split[1]);
-                }
-                for (Map.Entry<String, String> methodEntry : mapping.getMethodEntries()) {
-                    String[] split = methodEntry.getKey().split("~");
-                    if (!Objects.equals(split[0], parentName)) continue;
-                    StringBuilder newThing = new StringBuilder();
-                    for (int i = 1; i < split.length; i++) {
-                        newThing.append(split[i]);
-                        if (i < split.length - 1) {
-                            newThing.append("~");
-                        }
-                    }
-                    proc.methods.add(newThing.toString());
-                }
-                proc.name = parentName;
-                a.add(proc);
-
+                ClassPreprocessor library = libraryParents.get(parentName);
+                if (library != null) a.add(library);
                 continue;
             }
             a.add(parent);
-            a.addAll(allParents(mapping, preprocessorMap, parent, visited));
+            a.addAll(allParents(preprocessorMap, libraryParents, parent, visited));
         }
         return a;
     }
@@ -333,7 +356,7 @@ public class JarRemapper {
         ClassWriter writer = new ClassWriter(reader, 0);
 
         ClassNode node = new ClassNode();
-        ClassRemapper classRemapper = new ClassRemapper(node, remapper);
+        ClassRemapper classRemapper = new GibberishClassRemapper(node, remapper);
         remapper.className = reader.getClassName();
         remapper.reader = reader;
 
@@ -365,7 +388,6 @@ public class JarRemapper {
         if (isMixin) {
             MixinRewriter rewriter = new MixinRewriter(remapper, writer);
             node.accept(rewriter);
-            System.out.println(rewriter.parents);
         } else {
             node.accept(writer);
         }

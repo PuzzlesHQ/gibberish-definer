@@ -7,19 +7,17 @@ import org.objectweb.asm.commons.Remapper;
 public class GibberishRemapper extends Remapper {
 
     public final IMapping mapping;
-    public final IMapping flippedMapping;
     public ClassReader reader;
     public String className;
 
     public GibberishRemapper(IMapping mapping) {
         this.mapping = mapping;
-        this.flippedMapping = mapping.reverse();
     }
 
     @Override
     public String mapMethodName(String owner, String name, String descriptor) {
-        String method = mapping.mapMethod(owner, name, descriptor);
-        return method.split("~")[1];
+        if (name.charAt(0) == '<') return name;
+        return nameOf(mapping.mapMethod(owner, name, descriptor));
     }
 
     @Override
@@ -32,9 +30,9 @@ public class GibberishRemapper extends Remapper {
         return mapFieldName(owner, name, descriptor);
     }
 
+    @Override
     public String mapFieldName(String owner, String name, String descriptor) {
-        String method = mapping.mapField(owner, name);
-        return method.split("~")[1];
+        return nameOf(mapping.mapField(owner, name));
     }
 
     public String mapPackageName(String name) {
@@ -47,6 +45,12 @@ public class GibberishRemapper extends Remapper {
 
     public String map(String internalName) {
         return mapping.mapClass(internalName);
+    }
+
+    private static String nameOf(String joined) {
+        int first = joined.indexOf('~');
+        int second = joined.indexOf('~', first + 1);
+        return second < 0 ? joined.substring(first + 1) : joined.substring(first + 1, second);
     }
 
 }

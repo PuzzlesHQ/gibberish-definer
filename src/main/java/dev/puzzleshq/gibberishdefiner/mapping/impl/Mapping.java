@@ -39,7 +39,25 @@ public class Mapping implements IMapping, Cloneable, Serializable {
 
     @Override
     public String mapClass(String clazz) {
-        if (!classes.containsKey(clazz)) return clazz;
+        if (clazz == null) return null;
+
+        if (!classes.containsKey(clazz)) {
+            // Check if the class is an inner or anonymous class (contains a dollar sign)
+            int dollarIndex = clazz.indexOf('$');
+            if (dollarIndex != -1) {
+                String outerClass = clazz.substring(0, dollarIndex);
+                String innerSuffix = clazz.substring(dollarIndex); // e.g., "$5" or "$1"
+
+                // Recursively or directly map the outer class part
+                String mappedOuter = mapClass(outerClass);
+
+                // Re-attach the compiler-generated inner suffix
+                return mappedOuter + innerSuffix;
+            }
+
+            return clazz;
+        }
+
         return classes.get(clazz);
     }
 

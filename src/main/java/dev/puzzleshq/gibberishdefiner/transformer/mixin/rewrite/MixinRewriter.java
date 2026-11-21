@@ -22,7 +22,6 @@ public class MixinRewriter extends ClassVisitor {
 
     @Override
     public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
-        System.out.println("rewriting mixin '" + name + "'");
         if (interfaces != null && interfaces.length != 0) {
             parents.addAll(Arrays.asList(interfaces));
         }

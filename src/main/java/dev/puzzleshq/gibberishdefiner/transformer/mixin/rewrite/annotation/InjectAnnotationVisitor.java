@@ -91,7 +91,6 @@ public class InjectAnnotationVisitor extends AnnotationVisitor {
                 if (!split[2].equals(desc)) continue;
                 String out = remapper.mapping.mapMethod(split[0], mName, desc);
                 String[] newSplit = out.split("~");
-                System.out.println(Arrays.toString(newSplit));
                 super.visit(name, newSplit[1] + newSplit[2]);
                 found = true;
             }
